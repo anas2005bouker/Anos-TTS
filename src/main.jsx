@@ -188,16 +188,59 @@ function Studio({ settings, voices, session, profile, onJob, notify }) {
   async function generate(){
     if(!text.trim()) return notify('اكتب النص أولًا')
     if(text.length > limit) return notify(`النص أطول من الحد المسموح: ${limit} حرف`)
-    setBusy(true); setResult(null)
-    try{
-      const token = session?.access_token
-      const data = await callFunction('generate-tts', { text, voice_id: selectedVoice?.model_voice_id || voice, format, speed, language:'ar' }, token)
-      setResult(data)
-      if(data.audio_base64) downloadBase64Audio(data.audio_base64, `sawti-${Date.now()}.${format}`, data.content_type || 'audio/wav')
+
+    setBusy(true)
+    setResult(null)
+
+    try {
+      const directUrl = import.meta.env.VITE_XTTS_API_URL
+
+      if (!directUrl) {
+        throw new Error('VITE_XTTS_API_URL غير مضاف في Netlify')
+      }
+
+      const res = await fetch(directUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          text,
+          language: 'ar',
+          voice_id: 'default',
+          speed: Number(speed || 1),
+          format: 'wav',
+          return_base64: true
+        })
+      })
+
+      const data = await res.json().catch(() => ({}))
+
+      if (!res.ok) {
+        throw new Error(data.detail || data.error || `XTTS server returned ${res.status}`)
+      }
+
+      if (!data.audio_base64) {
+        throw new Error('لم يرجع خادم XTTS ملف audio_base64')
+      }
+
+      const resultData = {
+        ok: true,
+        audio_base64: data.audio_base64,
+        content_type: 'audio/wav',
+        message: 'تم توليد الصوت مباشرة من XTTS.'
+      }
+
+      setResult(resultData)
+      downloadBase64Audio(data.audio_base64, `sawti-${Date.now()}.wav`, 'audio/wav')
       onJob?.()
-      notify(data.demo ? 'تم تنفيذ تجربة وهمية لأن XTTS_API_URL غير مضاف' : 'تم توليد الصوت')
-    }catch(err){ notify(err.message) }
-    finally{ setBusy(false) }
+      notify('تم توليد وتحميل الصوت')
+
+    } catch (err) {
+      notify(err.message || 'فشل توليد الصوت')
+    } finally {
+      setBusy(false)
+    }
   }
   return <main className="page"><Title eyebrow="استوديو التحويل" title="حوّل النص إلى كلام" text="هذا القسم يتصل بـ Netlify Function، ثم بخادم XTTS-v2 عند إضافة XTTS_API_URL."/>
     <div className="studioGrid"><div className="panel"><label>النص العربي</label><textarea value={text} onChange={e=>setText(e.target.value)} maxLength={limit+1000}/><div className="counter">{text.length} / {limit} حرف</div><div className="formGrid"><Field label="الصوت"><select value={voice} onChange={e=>setVoice(e.target.value)}>{voices.map(v=><option key={v.id} value={v.id}>{v.name} - {v.accent}</option>)}</select></Field><Field label="الصيغة"><select value={format} onChange={e=>setFormat(e.target.value)}><option value="wav">WAV</option><option value="mp3">MP3</option><option value="ogg">OGG</option></select></Field><Field label={`السرعة ${speed}x`}><input type="range" min="0.7" max="1.3" step="0.1" value={speed} onChange={e=>setSpeed(e.target.value)}/></Field></div><div className="hint">مهم: دقة العربية تتحسن جدًا إذا أضفت تشكيلًا للنص أو قاموس أسماء في الخادم.</div><button className="primary wide" onClick={generate} disabled={busy}>{busy?'جاري التوليد...':'توليد وتحميل الصوت'}</button>{result && <ResultBox result={result}/>}</div><aside className="panel side"><h3>معلومات التشغيل</h3><ul><li>المحرك: XTTS-v2 endpoint</li><li>قاعدة البيانات: Supabase</li><li>التخزين: Supabase Storage</li><li>الحماية: RLS + Netlify Functions</li></ul><button className="secondary wide" onClick={()=>location.hash='dashboard'}>{session?'عرض سجل التحويلات':'تسجيل الدخول لحفظ السجل'}</button></aside></div>
