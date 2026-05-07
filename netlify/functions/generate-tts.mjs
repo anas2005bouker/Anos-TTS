@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-
+import WebSocket from 'ws'
 const json = (status, body) => ({ statusCode: status, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
 const env = (name) => process.env[name] || ''
 function adminClient() {
