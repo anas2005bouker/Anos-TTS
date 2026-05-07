@@ -1,39 +1,36 @@
-import base64
 import os
-import tempfile
+import shutil
+import base64
 from pathlib import Path
 from typing import Optional
 
 from fastapi import FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-try:
-    from TTS.api import TTS
-except Exception as exc:  # shows clearer health error if package/model cannot load
-    TTS = None
-    IMPORT_ERROR = str(exc)
-else:
-    IMPORT_ERROR = ""
-
-API_KEY = os.getenv("XTTS_SERVER_API_KEY", "").strip()
+os.environ["COQUI_TOS_AGREED"] = "1"
 MODEL_NAME = os.getenv("XTTS_MODEL", "tts_models/multilingual/multi-dataset/xtts_v2")
 USE_GPU = os.getenv("USE_GPU", "false").lower() in {"1", "true", "yes", "on"}
 SPEAKER_DIR = Path(os.getenv("SPEAKER_WAV_DIR", "/app/speakers"))
-SPEAKER_DIR.mkdir(parents=True, exist_ok=True)
+DEFAULT_SPEAKER = SPEAKER_DIR / "default.wav"
 
-app = FastAPI(title="Sawti XTTS API", version="1.0.0")
+os.environ.setdefault("TTS_HOME", "/tmp/coqui-tts-cache")
+os.environ.setdefault("XDG_DATA_HOME", "/tmp/coqui-data")
+os.environ.setdefault("HF_HOME", "/tmp/huggingface")
+os.environ.setdefault("TRANSFORMERS_CACHE", "/tmp/huggingface/transformers")
+
+app = FastAPI(title="Sawti XTTS API", version="1.1.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=False,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-_model = None
-_model_error: Optional[str] = None
+tts_model = None
+last_error = None
 
 class TTSRequest(BaseModel):
     text: str
@@ -41,91 +38,140 @@ class TTSRequest(BaseModel):
     voice_id: str = "default"
     speed: float = 1.0
     format: str = "wav"
-    return_base64: bool = False
+    return_base64: bool = True
 
 
-def check_key(authorization: Optional[str]) -> None:
-    if not API_KEY:
-        return
-    if authorization != f"Bearer {API_KEY}":
-        raise HTTPException(status_code=401, detail="Invalid XTTS API key")
+def wipe_model_cache():
+    for p in [
+        "/tmp/coqui-tts-cache",
+        "/tmp/coqui-data",
+        "/tmp/huggingface",
+        "/root/.local/share/tts",
+        "/root/.cache/huggingface",
+        "/home/user/.local/share/tts",
+        "/home/user/.cache/huggingface",
+    ]:
+        try:
+            if os.path.exists(p):
+                shutil.rmtree(p, ignore_errors=True)
+        except Exception:
+            pass
 
 
-def get_model():
-    global _model, _model_error
-    if _model is not None:
-        return _model
-    if TTS is None:
-        _model_error = IMPORT_ERROR or "coqui-tts import failed"
-        raise HTTPException(status_code=500, detail=_model_error)
+def load_model(force_clean: bool = False):
+    global tts_model, last_error
+    if tts_model is not None:
+        return tts_model
+    if force_clean:
+        wipe_model_cache()
     try:
-        _model = TTS(MODEL_NAME, gpu=USE_GPU)
-        return _model
-    except Exception as exc:
-        _model_error = str(exc)
-        raise HTTPException(status_code=500, detail=f"Failed to load XTTS model: {_model_error}")
+        from TTS.api import TTS
+        tts_model = TTS(MODEL_NAME, gpu=USE_GPU)
+        last_error = None
+        return tts_model
+    except Exception as e:
+        last_error = str(e)
+        bad_cache_markers = ["PytorchStreamReader failed", "invalid header", "archive is corrupted", "failed reading file", "checkpoint"]
+        if not force_clean and any(marker.lower() in str(e).lower() for marker in bad_cache_markers):
+            wipe_model_cache()
+            try:
+                from TTS.api import TTS
+                tts_model = TTS(MODEL_NAME, gpu=USE_GPU)
+                last_error = None
+                return tts_model
+            except Exception as e2:
+                last_error = str(e2)
+                raise e2
+        raise e
+
+
+def normalize_voice_id(voice_id: str) -> str:
+    raw = (voice_id or "default").strip().replace(".wav", "")
+    safe = "".join(ch for ch in raw if ch.isalnum() or ch in {"_", "-"})
+    return safe or "default"
 
 
 def speaker_path(voice_id: str) -> Path:
-    safe_voice = "".join(ch for ch in voice_id if ch.isalnum() or ch in {"_", "-"}) or "default"
-    candidate = SPEAKER_DIR / f"{safe_voice}.wav"
+    safe = normalize_voice_id(voice_id)
+    candidate = SPEAKER_DIR / f"{safe}.wav"
     if candidate.exists():
         return candidate
-    fallback = SPEAKER_DIR / "default.wav"
-    if fallback.exists():
-        return fallback
-    raise HTTPException(
-        status_code=400,
-        detail="Missing speaker reference. Upload a licensed WAV file as speakers/default.wav or speakers/<voice_id>.wav in the XTTS server/Space.",
-    )
+    if DEFAULT_SPEAKER.exists():
+        return DEFAULT_SPEAKER
+    raise HTTPException(status_code=500, detail="No speaker WAV found. Add speakers/default.wav to the Space.")
+
+
+def check_key(authorization: Optional[str]):
+    api_key = os.getenv("XTTS_SERVER_API_KEY")
+    if api_key and authorization != f"Bearer {api_key}":
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
 
 @app.get("/")
 def root():
     return {"ok": True, "service": "Sawti XTTS API", "docs": "/docs"}
 
+
 @app.get("/health")
 def health():
     return {
-        "ok": _model_error is None,
+        "ok": last_error is None,
         "model": MODEL_NAME,
         "gpu": USE_GPU,
         "speaker_dir": str(SPEAKER_DIR),
-        "has_default_speaker": (SPEAKER_DIR / "default.wav").exists(),
-        "model_loaded": _model is not None,
-        "error": _model_error,
+        "available_voices": sorted([p.stem for p in SPEAKER_DIR.glob("*.wav")]),
+        "has_default_speaker": DEFAULT_SPEAKER.exists(),
+        "model_loaded": tts_model is not None,
+        "error": last_error,
     }
 
-@app.post("/tts")
-def tts(req: TTSRequest, authorization: Optional[str] = Header(default=None)):
+
+@app.post("/reload")
+def reload_model(authorization: Optional[str] = Header(None)):
+    global tts_model, last_error
     check_key(authorization)
-    text = req.text.strip()
-    if not text:
+    tts_model = None
+    last_error = None
+    wipe_model_cache()
+    try:
+        load_model(force_clean=True)
+        return {"ok": True, "message": "Model cache wiped and model reloaded"}
+    except Exception as e:
+        last_error = str(e)
+        raise HTTPException(status_code=500, detail=f"Reload failed: {e}")
+
+
+@app.post("/tts")
+def tts(req: TTSRequest, authorization: Optional[str] = Header(None)):
+    check_key(authorization)
+    if not req.text or not req.text.strip():
         raise HTTPException(status_code=400, detail="Text is required")
-    if len(text) > 2500:
-        raise HTTPException(status_code=400, detail="Text is too long for this endpoint")
+    if len(req.text) > 2500:
+        raise HTTPException(status_code=400, detail="Text is too long")
     if req.language.lower() not in {"ar", "en", "fr", "de", "es", "it", "pt", "pl", "tr", "ru", "nl", "cs", "zh-cn", "ja", "ko", "hu", "hi"}:
         raise HTTPException(status_code=400, detail="Unsupported language for XTTS-v2")
-
-    model = get_model()
+    try:
+        model = load_model()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to load XTTS model: {e}")
     spk = speaker_path(req.voice_id)
-    out = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
-    out.close()
-
+    output_path = "/tmp/sawti_output.wav"
     try:
         model.tts_to_file(
-            text=text,
+            text=req.text.strip(),
             speaker_wav=str(spk),
-            language=req.language,
-            file_path=out.name,
+            language=req.language or "ar",
+            file_path=output_path,
+            speed=float(req.speed or 1.0),
             split_sentences=True,
         )
-        if req.return_base64:
-            data = Path(out.name).read_bytes()
-            return JSONResponse({
-                "ok": True,
-                "content_type": "audio/wav",
-                "audio_base64": base64.b64encode(data).decode("ascii"),
-            })
-        return FileResponse(out.name, media_type="audio/wav", filename="sawti.wav")
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"XTTS generation failed: {exc}")
+        audio_bytes = Path(output_path).read_bytes()
+        return JSONResponse({
+            "ok": True,
+            "format": "wav",
+            "voice_id": normalize_voice_id(req.voice_id),
+            "content_type": "audio/wav",
+            "audio_base64": base64.b64encode(audio_bytes).decode("utf-8"),
+        })
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"XTTS generation failed: {e}")

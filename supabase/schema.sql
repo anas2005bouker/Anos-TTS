@@ -24,6 +24,7 @@ create table if not exists public.social_links (
   id uuid primary key default gen_random_uuid(),
   platform text not null,
   label text,
+  icon text not null default 'website',
   url text not null,
   sort_order int not null default 10,
   is_active boolean not null default true,
@@ -38,6 +39,7 @@ create table if not exists public.voice_presets (
   accent text,
   description text,
   model_voice_id text,
+  sample_text text,
   sort_order int not null default 10,
   is_active boolean not null default true,
   created_at timestamptz not null default now(),
@@ -191,38 +193,47 @@ insert into public.site_settings(key, value) values ('site', '{
   "site_domain":"sawti.ai",
   "support_email":"support@sawti.ai",
   "legal_email":"legal@sawti.ai",
-  "hero_title":"حوّل النص العربي إلى صوت بشري طبيعي",
-  "hero_subtitle":"منصة عربية احترافية لتحويل النص إلى كلام مع لوحة إدارة، حسابات مستخدمين، أصوات، سجل تحويلات، وروابط اجتماعية قابلة للتعديل.",
-  "cta_primary":"ابدأ التحويل الآن",
-  "cta_secondary":"ادخل لوحة الإدارة",
+  "hero_title":"حوّل النص العربي إلى صوت طبيعي خلال ثوانٍ",
+  "hero_subtitle":"استوديو عربي بسيط واحترافي لتحويل النص إلى ملف صوتي WAV باستخدام XTTS-v2، مع حسابات مستخدمين ولوحة إدارة كاملة.",
+  "cta_primary":"جرّب التحويل الآن",
+  "cta_secondary":"استكشف الأصوات",
   "max_chars_guest":300,
   "max_chars_user":2500,
-  "allow_demo_mode":true,
   "maintenance_mode":false,
-  "announcement":"نسخة جاهزة للربط مع Supabase وNetlify وXTTS-v2."
+  "announcement":"خدمة تحويل نص عربي إلى صوت بجودة عالية",
+  "free_plan_title":"الخطة المجانية",
+  "free_plan_description":"تحويل النصوص العربية إلى WAV ضمن حدود عادلة.",
+  "donation_enabled":true,
+  "donation_amount":5,
+  "donation_currency":"USD",
+  "donation_provider":"PayPal",
+  "donation_url":"https://www.paypal.com/",
+  "donation_button_text":"تبرع بـ 5 دولار",
+  "donation_description":"ادعم استمرار الخدمة وتطوير أصوات عربية أفضل.",
+  "footer_summary":"منصة عربية لتحويل النص إلى كلام بواجهة واضحة، حسابات مستخدمين، ولوحة إدارة قابلة للتخصيص."
 }'::jsonb) on conflict (key) do nothing;
 
-insert into public.social_links(platform,label,url,sort_order,is_active) values
-('X / Twitter','تابعنا على X','https://x.com/',1,true),
-('YouTube','قناتنا','https://youtube.com/',2,true),
-('LinkedIn','LinkedIn','https://linkedin.com/',3,true),
-('TikTok','TikTok','https://tiktok.com/',4,true),
-('GitHub','GitHub','https://github.com/',5,true)
+insert into public.social_links(platform,label,icon,url,sort_order,is_active) values
+('X','X','x','https://x.com/',1,true),
+('YouTube','YouTube','youtube','https://youtube.com/',2,true),
+('Instagram','Instagram','instagram','https://instagram.com/',3,true),
+('Telegram','Telegram','telegram','https://telegram.org/',4,true),
+('WhatsApp','WhatsApp','whatsapp','https://whatsapp.com/',5,true)
 on conflict do nothing;
 
-insert into public.voice_presets(name,language,accent,description,model_voice_id,sort_order,is_active) values
-('فهد','ar','فصحى هادئة','مناسب للشروحات والتعليم والبودكاست.','default_male_ar',1,true),
-('ليان','ar','فصحى إعلامية','صوت ناعم واضح للمقالات والفيديوهات.','default_female_ar',2,true),
-('راشد','ar','خليجي خفيف','مناسب للإعلانات والمحتوى القصير.','gulf_male_ar',3,true),
-('مريم','ar','عربية عامة','مناسب للمحتوى القصصي والإنساني.','warm_female_ar',4,true)
+insert into public.voice_presets(name,language,accent,description,model_voice_id,sample_text,sort_order,is_active) values
+('الصوت الأساسي','ar','عربي عام','الصوت المرجعي الحالي المتوفر على خادم XTTS. أضف ملفات WAV أخرى في Hugging Face لإنشاء أصوات متعددة فعلية.','default','مرحبا، هذه تجربة صوتية قصيرة.',1,true)
 on conflict do nothing;
 
 insert into public.legal_pages(slug,title,body,sort_order) values
-('terms','شروط الاستخدام','باستخدامك للموقع، توافق على عدم إنشاء محتوى مضلل أو منتحل أو مخالف للقوانين. يجب أن تملك حق استخدام النصوص والأصوات التي ترفعها.',1),
-('privacy','سياسة الخصوصية','نستخدم بيانات الحساب والنصوص والملفات الصوتية فقط لتشغيل الخدمة وتحسينها. يمكنك طلب حذف بياناتك عبر الدعم.',2),
-('voice-policy','سياسة الأصوات','لا يسمح برفع أو استنساخ صوت شخص حقيقي دون موافقته الصريحة. يحق للإدارة تعطيل أي حساب مخالف.',3),
-('cookies','سياسة الكوكيز','نستخدم ملفات كوكيز ضرورية لتسجيل الدخول والأمان، وقد نستخدم تحليلات مجهولة لتحسين الأداء.',4),
-('dmca','DMCA وطلبات الإزالة','لأصحاب الحقوق إرسال بلاغ إزالة عبر البريد القانوني، وستتم مراجعة البلاغات وتجميد المحتوى محل النزاع عند الحاجة.',5)
+('about','من نحن','صوتي AI منصة عربية لتحويل النص إلى كلام، تهدف إلى تقديم تجربة سهلة وواضحة للمستخدمين وصناع المحتوى.',1),
+('terms','شروط الاستخدام','باستخدامك للموقع، توافق على استخدام الخدمة بطريقة قانونية وعدم إنشاء محتوى منتحل أو مضلل أو مخالف للأنظمة.',2),
+('privacy','سياسة الخصوصية','نستخدم بيانات الحساب والنصوص وطلبات التحويل لتشغيل الخدمة وتحسينها، ولا نبيع بيانات المستخدمين.',3),
+('disclaimer','إخلاء المسؤولية','الخدمة تعتمد على نماذج ذكاء اصطناعي وقد تنتج أخطاء في النطق أو التشكيل. يتحمل المستخدم مسؤولية مراجعة المخرجات قبل استخدامها.',4),
+('support','الدعم والمساعدة','يمكنك التواصل معنا عبر نموذج الدعم في الموقع أو البريد الإلكتروني المخصص للدعم.',5),
+('voice-policy','سياسة الأصوات','لا يسمح برفع أو استخدام صوت شخص حقيقي دون موافقته الصريحة. أي استخدام مخالف قد يؤدي إلى تعطيل الحساب.',6),
+('cookies','سياسة الكوكيز','نستخدم ملفات كوكيز ضرورية لتسجيل الدخول والأمان وتحسين تجربة الاستخدام.',7),
+('dmca','DMCA وطلبات الإزالة','يمكن لأصحاب الحقوق إرسال بلاغات إزالة عبر البريد القانوني، وستتم مراجعة البلاغات واتخاذ الإجراء المناسب.',8)
 on conflict (slug) do nothing;
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)

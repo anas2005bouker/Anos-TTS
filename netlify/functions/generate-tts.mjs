@@ -1,12 +1,13 @@
 import { createClient } from '@supabase/supabase-js'
 import WebSocket from 'ws'
+
 const json = (status, body) => ({ statusCode: status, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
 const env = (name) => process.env[name] || ''
 function adminClient() {
   const url = env('SUPABASE_URL') || env('VITE_SUPABASE_URL')
   const key = env('SUPABASE_SERVICE_ROLE_KEY')
   if (!url || !key) return null
- return createClient(url, key, { auth: { persistSession: false }, realtime: { transport: WebSocket } })
+  return createClient(url, key, { auth: { persistSession: false }, realtime: { transport: WebSocket } })
 }
 async function getUser(event, supabase) {
   const auth = event.headers.authorization || event.headers.Authorization || ''
