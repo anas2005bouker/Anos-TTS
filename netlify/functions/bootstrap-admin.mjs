@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import WebSocket from 'ws'
 const json = (status, body) => ({ statusCode: status, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
 const env = (name) => process.env[name] || ''
 export const handler = async (event) => {
@@ -11,7 +12,7 @@ export const handler = async (event) => {
     const url = env('SUPABASE_URL') || env('VITE_SUPABASE_URL')
     const key = env('SUPABASE_SERVICE_ROLE_KEY')
     if (!url || !key) return json(400, { error: 'Missing Supabase server variables' })
-    const supabase = createClient(url, key, { auth: { persistSession: false } })
+    const supabase = createClient(url, key, { auth: { persistSession: false }, realtime: { transport: WebSocket } })
     const { data, error } = await supabase.auth.admin.listUsers({ page: 1, perPage: 1000 })
     if (error) throw error
     const user = (data.users || []).find(u => (u.email || '').toLowerCase() === email)
