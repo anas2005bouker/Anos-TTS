@@ -1,106 +1,20 @@
-1:41:21 AM: build-image version: ac6eb13fbf000e5c09ad677efd8b7c3c2d0142b6 (noble-new-builds)
-1:41:21 AM: buildbot version: 361b8ae7783dcf11554627378e75c829cc866748
-1:41:21 AM: Building without cache
-1:41:21 AM: Starting to prepare the repo for build
-1:41:21 AM: No cached dependencies found. Cloning fresh repo
-1:41:21 AM: git clone --filter=blob:none https://github.com/anas2005bouker/Anos-TTS
-1:41:22 AM: Preparing Git Reference refs/heads/main
-1:41:23 AM: Installing dependencies
-1:41:23 AM: mise ~/.config/mise/config.toml tools: python@3.14.3
-1:41:23 AM: mise ~/.config/mise/config.toml tools: ruby@3.4.8
-1:41:24 AM: mise ~/.config/mise/config.toml tools: go@1.26.2
-1:41:24 AM: v20.20.2 is already installed.
-1:41:24 AM: Now using node v20.20.2 (npm v10.8.2)
-1:41:24 AM: Enabling Node.js Corepack
-1:41:25 AM: No npm workspaces detected
-1:41:25 AM: Installing npm packages using npm version 10.8.2
-1:49:09 AM: npm error Exit handler never called!
-1:49:09 AM: npm error This is an error with npm itself. Please report this error at:
-1:49:09 AM: npm error   <https://github.com/npm/cli/issues>
-1:49:09 AM: npm error A complete log of this run can be found in: /opt/buildhome/.npm/_logs/2026-05-08T00_41_25_139Z-debug-0.log
-1:49:09 AM: npm packages installed
-1:49:09 AM: Successfully installed dependencies
-1:49:09 AM: Detected 1 framework(s)
-1:49:09 AM: "vite" at version "5.4.21"
-1:49:09 AM: Starting build script
-1:49:10 AM: Section completed: initializing
-1:49:11 AM: ​
-1:49:11 AM: Netlify Build                                                 
-1:49:11 AM: ────────────────────────────────────────────────────────────────
-1:49:11 AM: ​
-1:49:11 AM: ❯ Version
-1:49:11 AM:   @netlify/build 35.13.4
-1:49:11 AM: ​
-1:49:11 AM: ❯ Flags
-1:49:11 AM:   accountId: 69fcece00e0ecb0d045b5a00
-1:49:11 AM:   baseRelDir: true
-1:49:11 AM:   buildId: 69fd3131bb4153675223c52c
-1:49:11 AM:   deployId: 69fd3131bb4153675223c52e
-1:49:11 AM: ​
-1:49:11 AM: ❯ Current directory
-1:49:11 AM:   /opt/build/repo
-1:49:11 AM: ​
-1:49:11 AM: ❯ Config file
-1:49:11 AM:   /opt/build/repo/netlify.toml
-1:49:11 AM: ​
-1:49:11 AM: ❯ Context
-1:49:11 AM:   production
-1:49:12 AM: Failed during stage 'building site': Build script returned non-zero exit code: 2 (https://ntl.fyi/exit-code-2)
-1:49:12 AM: ​
-1:49:12 AM: build.command from netlify.toml                               
-1:49:12 AM: ────────────────────────────────────────────────────────────────
-1:49:12 AM: ​
-1:49:12 AM: $ npm run build
-1:49:12 AM: > sawti-ai-pro-netlify-supabase@1.0.0 build
-1:49:12 AM: > vite build
-1:49:12 AM: sh: 1: vite: not found
-1:49:12 AM: ​
-1:49:12 AM: "build.command" failed                                        
-1:49:12 AM: ────────────────────────────────────────────────────────────────
-1:49:12 AM: ​
-1:49:12 AM:   Error message
-1:49:12 AM:   Command failed with exit code 127: npm run build (https://ntl.fyi/exit-code-127)
-1:49:12 AM: ​
-1:49:12 AM:   Error location
-1:49:12 AM:   In build.command from netlify.toml:
-1:49:12 AM:   npm run build
-1:49:12 AM: ​
-1:49:12 AM:   Resolved config
-1:49:12 AM:   build:
-1:49:12 AM:     command: npm run build
-1:49:12 AM:     commandOrigin: config
-1:49:12 AM:     environment:
-1:49:12 AM:       - ADMIN_BOOTSTRAP_TOKEN
-1:49:12 AM:       - ALLOW_DEMO_MODE
-1:49:12 AM:       - SUPABASE_SERVICE_ROLE_KEY
-1:49:12 AM:       - VITE_PUBLIC_SITE_URL
-1:49:12 AM:       - VITE_SUPABASE_ANON_KEY
-1:49:12 AM:       - VITE_SUPABASE_URL
-1:49:12 AM:       - VITE_XTTS_API_URL
-1:49:12 AM:       - XTTS_API_URL
-1:49:12 AM:       - NODE_VERSION
-1:49:12 AM:     publish: /opt/build/repo/dist
-1:49:12 AM:     publishOrigin: config
-1:49:12 AM:   functionsDirectory: /opt/build/repo/netlify/functions
-1:49:12 AM:   headers:
-1:49:12 AM:     - for: /*
-      values:
-        Permissions-Policy: camera=(), microphone=(self), geolocation=()
-        Referrer-Policy: strict-origin-when-cross-origin
-        X-Content-Type-Options: nosniff
-        X-Frame-Options: DENY
-    - for: /assets/*
-      values:
-        Cache-Control: public, max-age=31536000, immutable
-  headersOrigin: config
-  redirects:
-    - from: /api/*
-      status: 200
-      to: /.netlify/functions/:splat
-    - from: /*
-      status: 200
-      to: /index.html
-  redirectsOrigin: config
-1:49:12 AM: Build failed due to a user error: Build script returned non-zero exit code: 2
-1:49:12 AM: Failing build: Failed to build site
-1:49:12 AM: Finished processing build request in 7m51.041s
+{
+  "name": "anos-tts",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "2.75.0",
+    "@vitejs/plugin-react": "4.3.4",
+    "vite": "5.4.11",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "ws": "8.18.0"
+  },
+  "devDependencies": {}
+}
